@@ -1,4 +1,4 @@
-"""Database engine, session, and dependency injection."""
+"""Database engine/session primitives."""
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -15,7 +15,7 @@ Base = declarative_base()
 
 
 def get_db():
-    """Dependency for FastAPI - yields DB session, ensures cleanup."""
+    """Yield a DB session and close it after request."""
     db = SessionLocal()
     try:
         yield db

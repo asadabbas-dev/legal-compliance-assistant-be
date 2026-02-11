@@ -1,16 +1,5 @@
-"""FastAPI dependencies - inject DB session into endpoints."""
+"""API dependency helpers."""
 
-from typing import Generator
+from app.core.database import get_db
 
-from sqlalchemy.orm import Session
-
-from app.core.database import SessionLocal
-
-
-def get_db() -> Generator[Session, None, None]:
-    """Dependency that yields a DB session and closes it after request."""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+__all__ = ["get_db"]

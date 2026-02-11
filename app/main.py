@@ -1,4 +1,6 @@
-"""Application entry point - FastAPI app factory."""
+"""FastAPI entrypoint for personal RAG backend."""
+
+from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
@@ -7,10 +9,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.api.v1.router import api_router
-from app.models import Chunk, Document, Feedback  # noqa: F401 - register models
+from app.models import Chat, ChatMessage, Document, DocumentChunk, Feedback, User  # noqa: F401
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,25 +22,37 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Startup: enable pgvector, create tables. Shutdown: cleanup."""
-    logger.info("Starting up...")
+async def lifespan(_: FastAPI):
+    logger.info("Starting backend...")
     try:
         with engine.connect() as conn:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             conn.commit()
         Base.metadata.create_all(bind=engine)
-        logger.info("Database ready.")
-    except Exception as e:
-        logger.warning("Database not available: %s. Upload/Ask will fail until DB is configured.", e)
+        with engine.connect() as conn:
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_document_chunks_embedding_hnsw "
+                    "ON document_chunks USING hnsw (embedding vector_cosine_ops)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_document_chunks_user_id "
+                    "ON document_chunks (user_id)"
+                )
+            )
+            conn.commit()
+        logger.info("Database initialized.")
+    except Exception as exc:
+        logger.exception("Startup DB initialization failed: %s", exc)
     yield
-    logger.info("Shutting down...")
+    logger.info("Shutting down backend.")
 
 
 app = FastAPI(
-    title="Legal / Compliance Knowledge Assistant API",
-    description="RAG-based Q&A for company documents",
-    version="0.1.0",
+    title="Personal Legal & Compliance Assistant API",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -55,5 +69,4 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 @app.get("/health")
 def health():
-    """Health check for load balancers / monitoring."""
     return {"status": "ok"}

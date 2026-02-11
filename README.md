@@ -1,151 +1,100 @@
 # Legal & Compliance Knowledge Assistant — Backend
 
-FastAPI backend for the Legal & Compliance Knowledge Assistant. Handles PDF upload, chunking, embeddings, vector search, and LLM-based Q&A with citations.
+Production-focused FastAPI backend for a **personal** legal/compliance RAG assistant.
 
 ## Tech Stack
 
-- **FastAPI**
-- **Python 3.10+**
-- **PostgreSQL** + **pgvector** (vector extension)
-- **SQLAlchemy 2**
-- **OpenAI** or **Anthropic** (configurable LLM provider)
+- FastAPI
+- Python 3.10+
+- PostgreSQL + pgvector
+- SQLAlchemy 2
+- OpenAI or Anthropic
+- Local filesystem storage (`UPLOAD_DIR`)
 
 ## Prerequisites
 
-- **Python 3.10+**
-- **PostgreSQL** with pgvector (or use Docker Compose from repo root)
+- Python 3.10+
+- PostgreSQL running locally
+- pgvector installed in your PostgreSQL instance
 
-## Project Structure
+## Run Locally
 
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python -m uvicorn app.main:app --reload --port 8000
 ```
-app/
-  main.py              # FastAPI app, lifespan, CORS, router
-  core/
-    config.py          # Settings from environment
-    database.py        # Engine, session, Base
-  api/
-    deps.py            # get_db dependency
-    v1/
-      router.py        # Aggregates v1 endpoints
-      endpoints/       # Upload, documents, ask, feedback
-  schemas/             # Pydantic request/response models
-  models/              # SQLAlchemy ORM (Document, Chunk, Feedback)
-  services/            # Business logic
-    document_service.py
-    ingestion_service.py   # PDF → chunks + embeddings
-    embedding_service.py
-    llm_service.py         # Provider routing (OpenAI/Anthropic)
-    llm_openai.py
-    llm_anthropic.py
-    llm_prompts.py
-    pdf_service.py
-requirements.txt
-```
+
+API docs: `http://localhost:8000/docs`
 
 ## Environment Variables
 
-Copy the example file and set your values:
+Copy and edit `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-| Variable | Description |
-|----------|-------------|
-| **Database** | |
-| `DB_HOST` | PostgreSQL host (default: `localhost`) |
-| `DB_PORT` | Port (default: `5432`) |
-| `DB_NAME` | Database name (default: `rag_db`) |
-| `DB_USER` | Database user |
-| `DB_PASSWORD` | Database password |
-| **Storage** | |
-| `UPLOAD_DIR` | Directory for uploaded PDFs (default: `uploads`) |
-| **LLM** | |
-| `LLM_PROVIDER` | `openai` or `anthropic` |
-| `OPENAI_API_KEY` | Required when `LLM_PROVIDER=openai` |
-| `OPENAI_MODEL` | e.g. `gpt-4o-mini` |
-| `EMBEDDING_MODEL` | e.g. `text-embedding-3-small` |
-| `ANTHROPIC_API_KEY` | Required when `LLM_PROVIDER=anthropic` |
-| `ANTHROPIC_MODEL` | e.g. `claude-3-5-sonnet-20241022` |
-| **RAG** | |
-| `CHUNK_SIZE` | Chunk size in characters (default: `1000`) |
-| `CHUNK_OVERLAP` | Overlap between chunks (default: `200`) |
-| `TOP_K` | Number of chunks retrieved per query (default: `5`) |
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- `JWT_SECRET`, `JWT_ALGORITHM`, `JWT_EXPIRE_MINUTES`
+- `UPLOAD_DIR`
+- `LLM_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `EMBEDDING_MODEL`
+- `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`
+- `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K`, `MAX_CHAT_MEMORY_MESSAGES`
 
-## Running Locally
+## API Overview (v1)
 
-1. Create and activate a virtual environment (recommended):
+### Auth
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `GET /api/v1/auth/me`
 
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate   # Windows: venv\Scripts\activate
-   ```
+Auth is optional for core usage:
+- Guest users can upload and chat without login.
+- Guest chat history is not persisted.
+- Logged-in users get persistent chat history.
 
-2. Install dependencies:
+### Documents
+- `POST /api/v1/documents/upload`
+- `POST /api/v1/documents/process`
+- `GET /api/v1/documents`
+- `GET /api/v1/documents/{id}`
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Chat + RAG
+- `POST /api/v1/chat/create`
+- `GET /api/v1/chat`
+- `GET /api/v1/chat/{id}`
+- `POST /api/v1/chat/{id}/message`
+- `GET /api/v1/chat/{id}/history`
+- `POST /api/v1/rag/query`
 
-3. Configure environment:
+### Feedback
+- `POST /api/v1/feedback`
 
-   ```bash
-   cp .env.example .env
-   # Edit .env: set DB_* and OPENAI_API_KEY (or ANTHROPIC_*)
-   ```
+## pgvector Setup
 
-4. Ensure PostgreSQL is running and the database exists (e.g. `rag_db`). The app will create the pgvector extension and tables on startup.
+If startup logs `extension "vector" is not available`, install pgvector for your PostgreSQL:
 
-5. Start the server:
-
-   ```bash
-   python -m uvicorn app.main:app --reload --port 8000
-   ```
-
-   Or use the included script:
-
-   ```bash
-   ./run.sh
-   ```
-
-- **API base:** http://localhost:8000  
-- **API v1:** http://localhost:8000/api/v1  
-- **Docs:** http://localhost:8000/docs  
-- **Health:** http://localhost:8000/health  
-
-## API Overview
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/upload` | Upload a PDF (multipart) |
-| GET | `/api/v1/documents` | List uploaded documents |
-| POST | `/api/v1/ask` | Ask a question (JSON: `question`), returns answer + citations |
-| POST | `/api/v1/feedback` | Submit feedback (helpful / not helpful) |
-
-All responses are JSON. See http://localhost:8000/docs for full request/response schemas.
-
-## Docker
-
-From the repo root, use Docker Compose to run PostgreSQL + backend (see root `README.md`). To build and run only the backend image:
-
+### Homebrew PostgreSQL
 ```bash
-docker build -t compliance-backend .
-docker run -p 8000:8000 \
-  -e DB_HOST=host.docker.internal \
-  -e DB_USER=postgres \
-  -e DB_PASSWORD=postgres \
-  -e OPENAI_API_KEY=sk-... \
-  compliance-backend
+brew install pgvector
 ```
 
-Adjust `DB_HOST` if the database runs in another container or on the host.
+### EnterpriseDB PostgreSQL (macOS example)
+```bash
+cd /tmp
+git clone --branch v0.8.0 https://github.com/pgvector/pgvector.git
+cd pgvector
+export PG_CONFIG=/Library/PostgreSQL/15/bin/pg_config
+make
+sudo make install
+```
 
-## Database
+Then restart PostgreSQL and run:
 
-- Uses **pgvector** for storing and querying embeddings (cosine distance).
-- Startup creates the `vector` extension and all tables if they do not exist.
-- If the database is unavailable at startup, the app still runs; upload and ask endpoints will fail until the DB is reachable.
-
-## License
-
-Same as the parent project.
+```sql
+CREATE EXTENSION vector;
+```

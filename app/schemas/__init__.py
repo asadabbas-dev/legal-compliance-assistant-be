@@ -1,22 +1,42 @@
 """Pydantic schemas for API request/response validation."""
 
+from app.schemas.auth import LoginRequest, MeResponse, RegisterRequest, TokenResponse
+from app.schemas.chat import (
+    ChatHistoryResponse,
+    ChatMessagePipelineResponse,
+    ChatMessageRequest,
+    ChatMessageResponse,
+    ChatResponse,
+    CreateChatRequest,
+)
 from app.schemas.document import (
     DocumentItem,
-    DocumentResponse,
     DocumentListResponse,
+    DocumentResponse,
+    ProcessDocumentRequest,
     UploadResponse,
 )
-from app.schemas.ask import AskRequest, AskResponse, CitationSchema
 from app.schemas.feedback import FeedbackRequest, FeedbackResponse
+from app.schemas.rag import RAGQueryRequest, RAGQueryResponse
 
 __all__ = [
+    "RegisterRequest",
+    "LoginRequest",
+    "TokenResponse",
+    "MeResponse",
     "DocumentItem",
-    "DocumentResponse",
     "DocumentListResponse",
+    "DocumentResponse",
+    "ProcessDocumentRequest",
     "UploadResponse",
-    "AskRequest",
-    "AskResponse",
-    "CitationSchema",
+    "CreateChatRequest",
+    "ChatResponse",
+    "ChatMessageRequest",
+    "ChatMessageResponse",
+    "ChatHistoryResponse",
+    "ChatMessagePipelineResponse",
+    "RAGQueryRequest",
+    "RAGQueryResponse",
     "FeedbackRequest",
     "FeedbackResponse",
 ]

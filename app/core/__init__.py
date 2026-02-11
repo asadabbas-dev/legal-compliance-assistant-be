@@ -1,4 +1,6 @@
-from app.core.config import settings
-from app.core.database import Base, engine, SessionLocal
+"""Core app primitives."""
 
-__all__ = ["settings", "Base", "engine", "SessionLocal"]
+from app.core.config import settings
+from app.core.database import Base, SessionLocal, engine
+
+__all__ = ["settings", "Base", "SessionLocal", "engine"]

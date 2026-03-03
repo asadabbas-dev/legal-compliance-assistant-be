@@ -20,7 +20,8 @@ def create_user(db: Session, email: str, password: str) -> User:
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
-    if email.lower().strip() == settings.ANONYMOUS_USER_EMAIL.lower().strip():
+    # Block authentication for guest accounts (they use unique emails now)
+    if email.lower().strip().startswith("guest-") and email.lower().strip().endswith("@anonymous.local"):
         return None
     user = get_user_by_email(db, email)
     if not user:
@@ -36,7 +37,7 @@ def get_or_create_anonymous_user(db: Session) -> User:
     unique_email = f"guest-{uuid.uuid4().hex}@anonymous.local"
     anon = User(
         email=unique_email,
-        password_hash=hash_password("anonymous-account-not-for-login"),
+        password_hash=hash_password("guest-no-login"),
     )
     db.add(anon)
     db.commit()

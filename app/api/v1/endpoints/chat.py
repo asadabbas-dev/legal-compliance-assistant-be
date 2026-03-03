@@ -109,37 +109,46 @@ def post_message(
     current_user: User | None = Depends(get_optional_current_user),
 ):
     if not current_user:
-        guest = get_or_create_anonymous_user(db)
-        rag = query_rag(db, user_id=guest.id, question=body.content)
-        now = datetime.utcnow()
-        return ChatMessagePipelineResponse(
-            user_message=ChatMessageResponse(
-                id=uuid4(),
-                role="user",
-                content=body.content,
-                created_at=now,
-                citations=[],
-                confidence_score=None,
-            ),
-            assistant_message=ChatMessageResponse(
-                id=uuid4(),
-                role="assistant",
-                content=rag.answer,
-                created_at=now,
-                citations=[
-                    {
-                        "document": c.document,
-                        "page": c.page,
-                        "section": c.section,
-                        "chunk_id": c.chunk_id,
-                        "similarity_score": c.similarity_score,
-                        "snippet": c.snippet,
-                    }
-                    for c in rag.citations
-                ],
-                confidence_score=rag.confidence_score,
-            ),
-        )
+        try:
+            guest = get_or_create_anonymous_user(db)
+            rag = query_rag(db, user_id=guest.id, question=body.content)
+            now = datetime.utcnow()
+            return ChatMessagePipelineResponse(
+                user_message=ChatMessageResponse(
+                    id=uuid4(),
+                    role="user",
+                    content=body.content,
+                    created_at=now,
+                    citations=[],
+                    confidence_score=None,
+                ),
+                assistant_message=ChatMessageResponse(
+                    id=uuid4(),
+                    role="assistant",
+                    content=rag.answer,
+                    created_at=now,
+                    citations=[
+                        {
+                            "document": c.document,
+                            "page": c.page,
+                            "section": c.section,
+                            "chunk_id": c.chunk_id,
+                            "similarity_score": c.similarity_score,
+                            "snippet": c.snippet,
+                        }
+                        for c in rag.citations
+                    ],
+                    confidence_score=rag.confidence_score,
+                ),
+            )
+        except Exception as exc:
+            text = str(exc).lower()
+            if "insufficient_quota" in text or "rate limit" in text or "ratelimiterror" in text:
+                raise HTTPException(
+                    status_code=503,
+                    detail="AI service quota exceeded. Please add billing/credits for your OpenAI account.",
+                ) from exc
+            raise HTTPException(status_code=500, detail="Failed to process chat message") from exc
     try:
         user_msg, assistant_msg = process_chat_message(
             db,
@@ -149,6 +158,14 @@ def post_message(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        text = str(exc).lower()
+        if "insufficient_quota" in text or "rate limit" in text or "ratelimiterror" in text:
+            raise HTTPException(
+                status_code=503,
+                detail="AI service quota exceeded. Please add billing/credits for your OpenAI account.",
+            ) from exc
+        raise HTTPException(status_code=500, detail="Failed to process chat message") from exc
     return ChatMessagePipelineResponse(
         user_message=_to_message_response(user_msg),
         assistant_message=_to_message_response(assistant_msg),

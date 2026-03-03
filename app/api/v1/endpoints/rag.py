@@ -1,6 +1,7 @@
 """Direct RAG query endpoint (without chat persistence)."""
 
 from fastapi import APIRouter, Depends
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
@@ -20,7 +21,16 @@ def rag_query(
     current_user: User | None = Depends(get_optional_current_user),
 ):
     actor = current_user or get_or_create_anonymous_user(db)
-    result = query_rag(db, user_id=actor.id, question=body.question)
+    try:
+        result = query_rag(db, user_id=actor.id, question=body.question)
+    except Exception as exc:
+        text = str(exc).lower()
+        if "insufficient_quota" in text or "rate limit" in text or "ratelimiterror" in text:
+            raise HTTPException(
+                status_code=503,
+                detail="AI service quota exceeded. Please add billing/credits for your OpenAI account.",
+            ) from exc
+        raise HTTPException(status_code=500, detail="Failed to process RAG query") from exc
     return RAGQueryResponse(
         answer=result.answer,
         citations=[

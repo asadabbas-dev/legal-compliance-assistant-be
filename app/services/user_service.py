@@ -31,11 +31,11 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
 
 
 def get_or_create_anonymous_user(db: Session) -> User:
-    anon = get_user_by_email(db, settings.ANONYMOUS_USER_EMAIL)
-    if anon:
-        return anon
+    """Create a unique anonymous user for each guest session."""
+    import uuid
+    unique_email = f"guest-{uuid.uuid4().hex}@anonymous.local"
     anon = User(
-        email=settings.ANONYMOUS_USER_EMAIL,
+        email=unique_email,
         password_hash=hash_password("anonymous-account-not-for-login"),
     )
     db.add(anon)

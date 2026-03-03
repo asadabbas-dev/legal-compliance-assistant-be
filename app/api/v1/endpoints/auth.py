@@ -16,7 +16,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    if body.email.lower().strip() == settings.ANONYMOUS_USER_EMAIL.lower().strip():
+    email = body.email.lower().strip()
+    # Block registration for guest email patterns and old anonymous email
+    if (email == settings.ANONYMOUS_USER_EMAIL.lower().strip() or
+        (email.startswith("guest-") and email.endswith("@anonymous.local"))):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email is reserved")
     if get_user_by_email(db, body.email):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")

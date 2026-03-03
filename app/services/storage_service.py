@@ -17,6 +17,9 @@ class StorageService:
     def get_local_path(self, key: str) -> Path | None:
         return None
 
+    def delete_file(self, key: str) -> bool:
+        raise NotImplementedError
+
 
 class LocalStorageService(StorageService):
     def __init__(self, root: Path):
@@ -38,6 +41,17 @@ class LocalStorageService(StorageService):
     def get_local_path(self, key: str) -> Path | None:
         path = self._path(key)
         return path if path.exists() else None
+
+    def delete_file(self, key: str) -> bool:
+        """Delete a file from local storage."""
+        try:
+            path = self._path(key)
+            if path.exists():
+                path.unlink()
+                return True
+            return False
+        except Exception:
+            return False
 
 
 def get_storage_service() -> StorageService:

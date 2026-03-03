@@ -15,7 +15,7 @@ from app.schemas.document import (
     ProcessDocumentRequest,
     UploadResponse,
 )
-from app.services.document_service import create_document, get_document, list_documents
+from app.services.document_service import create_document, get_document, list_documents, delete_document
 from app.services.ingestion_service import ingest_document
 from app.services.user_service import get_or_create_anonymous_user
 from app.core.database import SessionLocal
@@ -126,3 +126,19 @@ def get_document_endpoint(
         status=d.status,
         created_at=d.created_at,
     )
+
+
+@router.delete("/{document_id}")
+def delete_document_endpoint(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
+):
+    """Delete a document and its associated chunks."""
+    actor = current_user or get_or_create_anonymous_user(db)
+    
+    success = delete_document(db, actor.id, document_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    return {"success": True, "message": "Document deleted successfully"}

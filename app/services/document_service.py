@@ -80,3 +80,29 @@ def materialize_document_to_local_temp(document: Document) -> Path:
     tmp.write(data)
     tmp.close()
     return Path(tmp.name)
+
+
+def delete_document(db: Session, user_id: UUID, document_id: int) -> bool:
+    """Delete a document and its associated chunks."""
+    # Get the document first to verify ownership
+    document = get_document(db, user_id, document_id)
+    if not document:
+        return False
+    
+    try:
+        # Delete from storage
+        storage = get_storage_service()
+        storage.delete_file(document.storage_path)
+        
+        # Delete document chunks first (due to foreign key constraint)
+        from app.models import DocumentChunk
+        db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete()
+        
+        # Delete the document record
+        db.delete(document)
+        db.commit()
+        
+        return True
+    except Exception as e:
+        db.rollback()
+        raise e

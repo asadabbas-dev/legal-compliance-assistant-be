@@ -27,6 +27,7 @@ class UploadResponse(BaseModel):
     success: bool = True
     message: str
     document: DocumentResponse
+    anonymous_token: str | None = None
 
 
 class ProcessDocumentRequest(BaseModel):

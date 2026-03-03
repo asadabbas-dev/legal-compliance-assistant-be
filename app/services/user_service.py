@@ -52,3 +52,13 @@ def get_or_create_anonymous_user(db: Session) -> User:
     db.commit()
     db.refresh(anon)
     return anon
+
+
+def get_anonymous_user_by_id(db: Session, user_id: str) -> User | None:
+    """Get anonymous user by ID."""
+    try:
+        from uuid import UUID
+        user_uuid = UUID(user_id)
+        return db.query(User).filter(User.id == user_uuid).first()
+    except (ValueError, TypeError):
+        return None

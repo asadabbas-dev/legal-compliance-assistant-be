@@ -19,6 +19,7 @@ from app.services.document_service import create_document, get_document, list_do
 from app.services.ingestion_service import ingest_document
 from app.services.user_service import get_or_create_anonymous_user
 from app.core.database import SessionLocal
+from app.auth.jwt import create_access_token
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 logger = logging.getLogger(__name__)
@@ -56,10 +57,17 @@ async def upload_document(
         file_bytes=content,
     )
     background_tasks.add_task(_run_ingestion, document.id)
+    
+    # If this is an anonymous user (no current_user), return a token for session continuity
+    anonymous_token = None
+    if not current_user:
+        anonymous_token = create_access_token(actor.id)
+    
     return UploadResponse(
         success=True,
         message="File uploaded. Ingestion started.",
         document=DocumentResponse(id=document.id, filename=document.filename),
+        anonymous_token=anonymous_token,
     )
 
 

@@ -36,15 +36,12 @@ def get_optional_current_user(
     db: Session = Depends(get_db),
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
 ) -> User | None:
-    """Return user when token is valid; return None when token is absent."""
+    """Return user when token is valid; return None when token is absent or invalid."""
     if not credentials:
         return None
     try:
         payload = decode_access_token(credentials.credentials)
         user_id = UUID(payload["sub"])
-    except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
+    except Exception:
+        return None
+    return db.query(User).filter(User.id == user_id).first()
